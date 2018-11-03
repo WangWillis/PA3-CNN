@@ -49,24 +49,29 @@ class BasicCNN(nn.Module):
     
     def __init__(self):
         super(BasicCNN, self).__init__()
-        F1_IN_C = 1
-        F1_OUT_C = 12
-        F1_KERNEL = 8
+        CONV1_IN_C = 1
+        CONV1_OUT_C = 12
+        CONV1_KERNEL = 8
 
-        F2_OUT_C = 10
-        F2_KERNEL = 8
+        CONV2_OUT_C = 10
+        CONV2_KERNEL = 8
 
-        F3_OUT_C = 8
-        F3_KERNEL = 8
+        CONV3_OUT_C = 8
+        CONV3_KERNEL = 8
 
         MP1_KERNEL = 3
         MP1_STRIDE = MP1_KERNEL
+
+        FC1_IN_SIZE = 165*165*8
+        FC1_OUT_SIZE = 128
+        
+        FC2_OUT_SIZE = 8
         
         # conv1: 1 input channel, 12 output channels, [8x8] kernel size
-        self.conv1 = nn.Conv2d(in_channels=F1_IN_C, out_channels=F1_OUT_C, kernel_size=F1_KERNEL)
+        self.conv1 = nn.Conv2d(in_channels=CONV1_IN_C, out_channels=CONV1_OUT_C, kernel_size=CONV1_KERNEL)
         
         # Add batch-normalization to the outputs of conv1
-        self.conv1_normed = nn.BatchNorm2d(F1_OUT_C)
+        self.conv1_normed = nn.BatchNorm2d(CONV1_OUT_C)
         
         # Initialized weights using the Xavier-Normal method
         torch_init.xavier_normal_(self.conv1.weight)
@@ -75,13 +80,13 @@ class BasicCNN(nn.Module):
         # the necessary value based on the provided specs for each layer
 
         #TODO: conv2: X input channels, 10 output channels, [8x8] kernel
-        self.conv2 = nn.Conv2d(in_channels=F1_OUT_C, out_channels=F2_OUT_C, kernal_size=F2_KERNEL)
-        self.conv2_normed = nn.BatchNorm2d(F2_OUT_C)
+        self.conv2 = nn.Conv2d(in_channels=CONV1_OUT_C, out_channels=CONV2_OUT_C, kernal_size=CONV2_KERNEL)
+        self.conv2_normed = nn.BatchNorm2d(CONV2_OUT_C)
         torch_init.xavier_normal_(self.conv2.weight)
 
         #TODO: conv3: X input channels, 8 output channels, [6x6] kernel
-        self.conv3 = nn.Conv2d(in_channels=F2_OUT_C, out_channels=F3_OUT_C, kernal_size=F3_KERNEL)
-        self.conv3_normed = nn.BatchNorm2d(F3_OUT_C)
+        self.conv3 = nn.Conv2d(in_channels=CONV2_OUT_C, out_channels=CONV3_OUT_C, kernal_size=CONV3_KERNEL)
+        self.conv3_normed = nn.BatchNorm2d(CONV3_OUT_C)
         torch_init.xavier_normal_(self.conv3.weight)
 
         #TODO: Apply max-pooling with a [3x3] kernel using tiling (*NO SLIDING WINDOW*)
@@ -89,13 +94,13 @@ class BasicCNN(nn.Module):
 
         # Define 2 fully connected layers:
         #TODO: Use the value you computed in Part 1, Question 4 for fc1's in_features
-        self.fc1 = nn.Linear(in_features=__, out_features=128)
-        self.fc1_normed = nn.BatchNorm1d(__)
-        torch_init.xavier_normal_(_______)
+        self.fc1 = nn.Linear(in_features=FC1_IN_SIZE, out_features=FC1_OUT_SIZE)
+        self.fc1_normed = nn.BatchNorm1d(FC1_OUT_SIZE)
+        torch_init.xavier_normal_(self.fc1_weight)
 
         #TODO: Output layer: what should out_features be?
-        self.fc2 = nn.Linear(in_features=__, out_features=__).cuda()
-        torch_init.xavier_normal_(_______)
+        self.fc2 = nn.Linear(in_features=FC1_OUT_SIZE, out_features=FC2_OUT_SIZE).cuda()
+        torch_init.xavier_normal_(self.fc2.weight)
 
 
 
