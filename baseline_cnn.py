@@ -49,12 +49,24 @@ class BasicCNN(nn.Module):
     
     def __init__(self):
         super(BasicCNN, self).__init__()
+        F1_IN_C = 1
+        F1_OUT_C = 12
+        F1_KERNEL = 8
+
+        F2_OUT_C = 10
+        F2_KERNEL = 8
+
+        F3_OUT_C = 8
+        F3_KERNEL = 8
+
+        MP1_KERNEL = 3
+        MP1_STRIDE = MP1_KERNEL
         
         # conv1: 1 input channel, 12 output channels, [8x8] kernel size
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=12, kernel_size=8)
+        self.conv1 = nn.Conv2d(in_channels=F1_IN_C, out_channels=F1_OUT_C, kernel_size=F1_KERNEL)
         
         # Add batch-normalization to the outputs of conv1
-        self.conv1_normed = nn.BatchNorm2d(12)
+        self.conv1_normed = nn.BatchNorm2d(F1_OUT_C)
         
         # Initialized weights using the Xavier-Normal method
         torch_init.xavier_normal_(self.conv1.weight)
@@ -63,17 +75,17 @@ class BasicCNN(nn.Module):
         # the necessary value based on the provided specs for each layer
 
         #TODO: conv2: X input channels, 10 output channels, [8x8] kernel
-        self.conv2 = nn.Conv2d(__, __, __)
-        self.conv2_normed = nn.BatchNorm2d(__)
-        torch_init.xavier_normal_(_______)
+        self.conv2 = nn.Conv2d(in_channels=F1_OUT_C, out_channels=F2_OUT_C, kernal_size=F2_KERNEL)
+        self.conv2_normed = nn.BatchNorm2d(F2_OUT_C)
+        torch_init.xavier_normal_(self.conv2.weight)
 
         #TODO: conv3: X input channels, 8 output channels, [6x6] kernel
-        self.conv3 = nn.Conv2d(__, __, __)
-        self.conv3_normed = nn.BatchNorm2d(__)
-        torch_init.xavier_normal_(_______)
+        self.conv3 = nn.Conv2d(in_channels=F2_OUT_C, out_channels=F3_OUT_C, kernal_size=F3_KERNEL)
+        self.conv3_normed = nn.BatchNorm2d(F3_OUT_C)
+        torch_init.xavier_normal_(self.conv3.weight)
 
         #TODO: Apply max-pooling with a [3x3] kernel using tiling (*NO SLIDING WINDOW*)
-        self.pool = nn.MaxPool2d(kernel_size=3, stride=__)
+        self.pool = nn.MaxPool2d(kernel_size=MP1_KERNEL, stride=MP1_STRIDE)
 
         # Define 2 fully connected layers:
         #TODO: Use the value you computed in Part 1, Question 4 for fc1's in_features

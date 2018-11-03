@@ -33,11 +33,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Uncomment for Python2
-# from __future__ import print_function
-
-
-
 class ChestXrayDataset(Dataset):
     """Custom Dataset class for the Chest X-Ray Dataset.
 
