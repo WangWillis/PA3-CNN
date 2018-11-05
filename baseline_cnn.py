@@ -160,4 +160,9 @@ class BasicCNN(nn.Module):
         return num_features
 
 if __name__ == '__main__':
-    pass
+    network = BasicCNN()
+    train, val, test = create_split_loaders(100, 423)
+    for batch in train:
+        preds = network.forward(batch)
+        print(preds)
+
