@@ -65,7 +65,7 @@ class BasicCNN(nn.Module):
         FC1_IN_SIZE = 165*165*8
         FC1_OUT_SIZE = 128
         
-        FC2_OUT_SIZE = 8
+        FC2_OUT_SIZE = 14
         
         # conv1: 1 input channel, 12 output channels, [8x8] kernel size
         self.conv1 = nn.Conv2d(in_channels=CONV1_IN_C, out_channels=CONV1_OUT_C, kernel_size=CONV1_KERNEL)
@@ -125,8 +125,8 @@ class BasicCNN(nn.Module):
         batch = func.relu(self.conv1_normed(self.conv1(batch)))
         
         # Apply conv2 and conv3 similarly
-        batch = _______ #func.relu(self.conv2_normed(self.conv2(batch)))
-        batch = _______ #func.relu(self.conv3_normed(self.conv3(batch)))
+        batch = func.relu(self.conv2_normed(self.conv2(batch)))
+        batch = func.relu(self.conv3_normed(self.conv3(batch)))
         
         # Pass the output of conv3 to the pooling layer
         batch = self.pool(batch)
@@ -135,15 +135,15 @@ class BasicCNN(nn.Module):
         batch = batch.view(-1, self.num_flat_features(batch))
         
         # Connect the reshaped features of the pooled conv3 to fc1
-        batch = _______ #func.relu(self.fc1(batch))
+        batch = func.relu(self.fc1(batch))
         
         # Connect fc1 to fc2 - this layer is slightly different than the rest (why?)
-        batch = _______ # self.fc2(batch)
+        batch = self.fc2(batch)
 
 
         # Return the class predictions
         #TODO: apply an activition function to 'batch'
-        return _______ # func.sigmoid(batch)
+        return func.sigmoid(batch)
     
     
 
