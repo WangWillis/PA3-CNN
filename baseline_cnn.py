@@ -80,23 +80,23 @@ class BasicCNN(nn.Module):
         # the necessary value based on the provided specs for each layer
 
         #TODO: conv2: X input channels, 10 output channels, [8x8] kernel
-        self.conv2 = nn.Conv2d(in_channels=CONV1_OUT_C, out_channels=CONV2_OUT_C, kernal_size=CONV2_KERNEL)
+        self.conv2 = nn.Conv2d(in_channels=CONV1_OUT_C, out_channels=CONV2_OUT_C, kernel_size=CONV2_KERNEL)
         self.conv2_normed = nn.BatchNorm2d(CONV2_OUT_C)
         torch_init.xavier_normal_(self.conv2.weight)
 
         #TODO: conv3: X input channels, 8 output channels, [6x6] kernel
-        self.conv3 = nn.Conv2d(in_channels=CONV2_OUT_C, out_channels=CONV3_OUT_C, kernal_size=CONV3_KERNEL)
+        self.conv3 = nn.Conv2d(in_channels=CONV2_OUT_C, out_channels=CONV3_OUT_C, kernel_size=CONV3_KERNEL)
         self.conv3_normed = nn.BatchNorm2d(CONV3_OUT_C)
         torch_init.xavier_normal_(self.conv3.weight)
 
         #TODO: Apply max-pooling with a [3x3] kernel using tiling (*NO SLIDING WINDOW*)
-        self.pool = nn.MaxPool2d(kernel_size=MP1_KERNEL, stride=MP1_STRIDE)
+        self.pool = nn.MaxPool2d(kernel_size=MP1_KERNEL, stride=MP1_STRIDE, padding=1)
 
         # Define 2 fully connected layers:
         #TODO: Use the value you computed in Part 1, Question 4 for fc1's in_features
         self.fc1 = nn.Linear(in_features=FC1_IN_SIZE, out_features=FC1_OUT_SIZE)
         self.fc1_normed = nn.BatchNorm1d(FC1_OUT_SIZE)
-        torch_init.xavier_normal_(self.fc1_weight)
+        torch_init.xavier_normal_(self.fc1.weight)
 
         #TODO: Output layer: what should out_features be?
         self.fc2 = nn.Linear(in_features=FC1_OUT_SIZE, out_features=FC2_OUT_SIZE).cuda()
@@ -127,6 +127,7 @@ class BasicCNN(nn.Module):
         # Apply conv2 and conv3 similarly
         batch = func.relu(self.conv2_normed(self.conv2(batch)))
         batch = func.relu(self.conv3_normed(self.conv3(batch)))
+        
         
         # Pass the output of conv3 to the pooling layer
         batch = self.pool(batch)
@@ -162,7 +163,6 @@ class BasicCNN(nn.Module):
 if __name__ == '__main__':
     network = BasicCNN()
     train, val, test = create_split_loaders(100, 423)
-    for batch in train:
-        preds = network.forward(batch)
-        print(preds)
-
+    for batch_img, targs in train:
+        print('-1')
+        preds = network.forward(batch_img)
