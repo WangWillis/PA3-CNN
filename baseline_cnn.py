@@ -119,7 +119,6 @@ class BasicCNN(nn.Module):
         --------
         - logits: (Variable) The output of the network
         """
-        
         # Apply first convolution, followed by ReLU non-linearity; 
         # use batch-normalization on its outputs
         batch = func.relu(self.conv1_normed(self.conv1(batch)))
@@ -162,9 +161,9 @@ class BasicCNN(nn.Module):
 
 def main():
     network = BasicCNN()
-    train, val, test = create_split_loaders(16, 29)
+    train, val, test = create_split_loaders(50, 29)
     loss_func = nn.BCELoss()
-    optimizer = optim.SGD(network.parameters(), momentum=0.9, lr=0.001)
+    optimizer = optim.Adam(network.parameters(), lr=1e-4)
 
     val_imgs, val_targs = next(iter(val))
     val_imgs = func.upsample(val_imgs, size=(val_imgs.size(2)/2, val_imgs.size(3)/2), mode='bilinear',\
@@ -188,7 +187,7 @@ def main():
         val_loss = loss_func(val_preds, val_targs)
         print(val_loss.item())
 
-        del preds, batch_img, targs, loss
+        del preds, batch_img, targs, loss, val_preds, val_loss
 
 if __name__ == '__main__':
     main()
