@@ -166,6 +166,12 @@ def main():
     for batch_img, targs in train:
         batch_img = func.upsample(batch_img, size=(batch_img.size(2)/2, batch_img.size(3)/2), mode='bilinear').cuda()
         preds = network.forward(batch_img)
+        
+        #Calculate the loss
+        criterion = nn.CrossEntropyLoss()
+        loss = criterion(preds, target)
+        loss.backward()
+
         print(preds)
         del preds, batch_img
 
