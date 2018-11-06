@@ -57,7 +57,7 @@ class BasicCNN(nn.Module):
         CONV2_KERNEL = 8
 
         CONV3_OUT_C = 8
-        CONV3_KERNEL = 8
+        CONV3_KERNEL = 6
 
         MP1_KERNEL = 3
         MP1_STRIDE = MP1_KERNEL
@@ -160,9 +160,13 @@ class BasicCNN(nn.Module):
         
         return num_features
 
-if __name__ == '__main__':
+def main():
     network = BasicCNN()
     train, val, test = create_split_loaders(100, 423)
     for batch_img, targs in train:
-        print('-1')
+        batch_img = func.upsample(batch_img, size=(batch_img.size(2)/2, batch_img.size(3)/2), mode='bilinear')
         preds = network.forward(batch_img)
+        print(preds)
+
+if __name__ == '__main__':
+    main()
