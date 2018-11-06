@@ -162,18 +162,33 @@ class BasicCNN(nn.Module):
 
 def main():
     network = BasicCNN()
-    train, val, test = create_split_loaders(100, 423)
+    train, val, test = create_split_loaders(16, 29)
+    loss_func = nn.BCELoss()
+    optimizer = optim.SGD(network.parameters(), momentum=0.9, lr=0.001)
+
+    val_imgs, val_targs = next(iter(val))
+    val_imgs = func.upsample(val_imgs, size=(val_imgs.size(2)/2, val_imgs.size(3)/2), mode='bilinear',\
+                             align_corners=True).cuda()
+    val_targs = val_targs.cuda()
+
     for batch_img, targs in train:
-        batch_img = func.upsample(batch_img, size=(batch_img.size(2)/2, batch_img.size(3)/2), mode='bilinear').cuda()
-        preds = network.forward(batch_img)
+        batch_img = func.upsample(batch_img, size=(batch_img.size(2)/2, batch_img.size(3)/2), mode='bilinear',\
+                                  align_corners=True).cuda()
+        targs = targs.cuda()
+        optimizer.zero_grad()
+
+        preds = network(batch_img)
         
         #Calculate the loss
-        criterion = nn.CrossEntropyLoss()
-        loss = criterion(preds, target)
+        loss = loss_func(preds, targs)
         loss.backward()
+        optimizer.step()
 
-        print(preds)
-        del preds, batch_img
+        val_preds = network(val_imgs)
+        val_loss = loss_func(val_preds, val_targs)
+        print(val_loss.item())
+
+        del preds, batch_img, targs, loss
 
 if __name__ == '__main__':
     main()
