@@ -159,9 +159,22 @@ class BasicCNN(nn.Module):
         
         return num_features
 
+def getResults(preds, targs, thresh = 0.5):
+    preds = preds.cpu().detach().numpy()
+    targs = targs.cpu().detach().numpy()
+    preds[preds < thresh] = 0
+    preds[preds >= thresh] = 1
+    print(preds)
+    print(targs)
+    TP = np.sum(np.logical_and(preds == 1, targs == 1))
+
+    FP = np.sum(np.logical_and(preds == 1, targs == 0))
+
+    FN = np.sum(np.logical_and(preds == 0, targs == 1))
+    return TP, FP, FN
 def main():
     network = BasicCNN()
-    train, val, test = create_split_loaders(50, 29)
+    train, val, test = create_split_loaders(2, 29)
     loss_func = nn.BCELoss()
     optimizer = optim.Adam(network.parameters(), lr=1e-4)
 
@@ -177,6 +190,11 @@ def main():
         optimizer.zero_grad()
 
         preds = network(batch_img)
+
+        TP, FP, FN = getResults(preds, targs)
+        precision = TP/(FP+TP)
+        recall = TP/(TP+FN)
+        bcr = (precision+recall)/2.0
         
         #Calculate the loss
         loss = loss_func(preds, targs)
