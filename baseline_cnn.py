@@ -171,7 +171,9 @@ def getResults(preds, targs, thresh = 0.5):
     FP = np.sum(np.logical_and(preds == 1, targs == 0))
 
     FN = np.sum(np.logical_and(preds == 0, targs == 1))
-    return TP, FP, FN
+    
+    TN = np.sum(np.logical_and(preds == 0, targs == 0))
+    return TP, TN, FP, FN
 def main():
     network = BasicCNN()
     train, val, test = create_split_loaders(2, 29)
@@ -191,7 +193,9 @@ def main():
 
         preds = network(batch_img)
 
-        TP, FP, FN = getResults(preds, targs)
+        TP, TN, FP, FN = getResults(preds, targs)
+
+        accuracy = (TN+TP)/(TP+TN+FP+FN)
         precision = TP/(FP+TP)
         recall = TP/(TP+FN)
         bcr = (precision+recall)/2.0
