@@ -159,6 +159,14 @@ class BasicCNN(nn.Module):
         
         return num_features
 
+    def visualize_filters(self):
+        weight = self.conv1.weight.data.numpy()
+        plt.imshow(weight[0,...])
+        weight = self.conv2.weight.data.numpy()
+        plt.imshow(weight[0,...])
+        weight = self.conv3.weight.data.numpy()
+        plt.imshow(weight[0,...])
+
 def getResults(preds, targs, thresh = 0.5):
     preds = preds.cpu().detach().numpy()
     targs = targs.cpu().detach().numpy()
