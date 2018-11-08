@@ -162,18 +162,17 @@ class BasicCNN(nn.Module):
 def getResults(preds, targs, thresh = 0.5):
     preds = preds.cpu().detach().numpy()
     targs = targs.cpu().detach().numpy()
+
     preds[preds < thresh] = 0
     preds[preds >= thresh] = 1
-    print(preds)
-    print(targs)
-    TP = np.sum(np.logical_and(preds == 1, targs == 1))
 
-    FP = np.sum(np.logical_and(preds == 1, targs == 0))
+    tp = np.sum(np.logical_and(preds == 1, targs == 1))
+    fp = np.sum(np.logical_and(preds == 1, targs == 0))
+    fn = np.sum(np.logical_and(preds == 0, targs == 1))
+    tn = np.sum(np.logical_and(preds == 0, targs == 0))
 
-    FN = np.sum(np.logical_and(preds == 0, targs == 1))
-    
-    TN = np.sum(np.logical_and(preds == 0, targs == 0))
-    return TP, TN, FP, FN
+    return tp, tn, fp, fn
+
 def main():
     network = BasicCNN()
     train, val, test = create_split_loaders(2, 29)
@@ -193,11 +192,11 @@ def main():
 
         preds = network(batch_img)
 
-        TP, TN, FP, FN = getResults(preds, targs)
+        tp, tn, fp, fn = getResults(preds, targs)
 
-        accuracy = (TN+TP)/(TP+TN+FP+FN)
-        precision = TP/(FP+TP)
-        recall = TP/(TP+FN)
+        accuracy = (tn+tp)/(tp+tn+fp+fn)
+        precision = tp/(fp+tp)
+        recall = tp/(tp+fn)
         bcr = (precision+recall)/2.0
         
         #Calculate the loss
