@@ -102,7 +102,7 @@ class ChestXrayDataset(Dataset):
             
         # Verify that image is in Tensor format
         if type(image) is not torch.Tensor:
-            image = transform.ToTensor(image)
+            image = self.transform.ToTensor(image)
 
         # Convert multi-class label into binary encoding 
         label = self.convert_label(self.labels[ind], self.classes)

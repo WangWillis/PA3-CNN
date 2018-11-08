@@ -68,10 +68,10 @@ class BasicCNN(nn.Module):
         FC2_OUT_SIZE = 14
         
         # conv1: 1 input channel, 12 output channels, [8x8] kernel size
-        self.conv1 = nn.Conv2d(in_channels=CONV1_IN_C, out_channels=CONV1_OUT_C, kernel_size=CONV1_KERNEL).cuda()
+        self.conv1 = nn.Conv2d(in_channels=CONV1_IN_C, out_channels=CONV1_OUT_C, kernel_size=CONV1_KERNEL)
         
         # Add batch-normalization to the outputs of conv1
-        self.conv1_normed = nn.BatchNorm2d(CONV1_OUT_C).cuda()
+        self.conv1_normed = nn.BatchNorm2d(CONV1_OUT_C)
         
         # Initialized weights using the Xavier-Normal method
         torch_init.xavier_normal_(self.conv1.weight)
@@ -80,22 +80,22 @@ class BasicCNN(nn.Module):
         # the necessary value based on the provided specs for each layer
 
         #TODO: conv2: X input channels, 10 output channels, [8x8] kernel
-        self.conv2 = nn.Conv2d(in_channels=CONV1_OUT_C, out_channels=CONV2_OUT_C, kernel_size=CONV2_KERNEL).cuda()
-        self.conv2_normed = nn.BatchNorm2d(CONV2_OUT_C).cuda()
+        self.conv2 = nn.Conv2d(in_channels=CONV1_OUT_C, out_channels=CONV2_OUT_C, kernel_size=CONV2_KERNEL)
+        self.conv2_normed = nn.BatchNorm2d(CONV2_OUT_C)
         torch_init.xavier_normal_(self.conv2.weight)
 
         #TODO: conv3: X input channels, 8 output channels, [6x6] kernel
-        self.conv3 = nn.Conv2d(in_channels=CONV2_OUT_C, out_channels=CONV3_OUT_C, kernel_size=CONV3_KERNEL).cuda()
-        self.conv3_normed = nn.BatchNorm2d(CONV3_OUT_C).cuda()
+        self.conv3 = nn.Conv2d(in_channels=CONV2_OUT_C, out_channels=CONV3_OUT_C, kernel_size=CONV3_KERNEL)
+        self.conv3_normed = nn.BatchNorm2d(CONV3_OUT_C)
         torch_init.xavier_normal_(self.conv3.weight)
 
         #TODO: Apply max-pooling with a [3x3] kernel using tiling (*NO SLIDING WINDOW*)
-        self.pool = nn.MaxPool2d(kernel_size=MP1_KERNEL, stride=MP1_STRIDE, padding=1).cuda()
+        self.pool = nn.MaxPool2d(kernel_size=MP1_KERNEL, stride=MP1_STRIDE, padding=1)
 
         # Define 2 fully connected layers:
         #TODO: Use the value you computed in Part 1, Question 4 for fc1's in_features
-        self.fc1 = nn.Linear(in_features=FC1_IN_SIZE, out_features=FC1_OUT_SIZE).cuda()
-        self.fc1_normed = nn.BatchNorm1d(FC1_OUT_SIZE).cuda()
+        self.fc1 = nn.Linear(in_features=FC1_IN_SIZE, out_features=FC1_OUT_SIZE)
+        self.fc1_normed = nn.BatchNorm1d(FC1_OUT_SIZE)
         torch_init.xavier_normal_(self.fc1.weight)
 
         #TODO: Output layer: what should out_features be?
@@ -173,42 +173,92 @@ def getResults(preds, targs, thresh = 0.5):
 
     return tp, tn, fp, fn
 
+# Setup: initialize the hyperparameters/variables
+num_epochs = 1           # Number of full passes through the dataset
+batch_size = 16          # Number of samples in each minibatch
+learning_rate = 0.001  
+seed = np.random.seed(1) # Seed the random number generator for reproducibility
+p_val = 0.1              # Percent of the overall dataset to reserve for validation
+p_test = 0.2             # Percent of the overall dataset to reserve for testing
+
+#TODO: Convert to Tensor - you can later add other transformations, such as Scaling here
+transform = transforms.Compose([transforms.Resize((512, 512)), transforms.ToTensor()])
+
+
+# Check if your system supports CUDA
+use_cuda = torch.cuda.is_available()
+
+# Setup GPU optimization if CUDA is supported
+if use_cuda:
+    computing_device = torch.device("cuda")
+    extras = {"num_workers": 1, "pin_memory": True}
+    print("CUDA is supported")
+else: # Otherwise, train on the CPU
+    computing_device = torch.device("cpu")
+    extras = False
+    print("CUDA NOT supported")
+
 def main():
-    network = BasicCNN()
-    train, val, test = create_split_loaders(2, 29)
-    loss_func = nn.BCELoss()
-    optimizer = optim.Adam(network.parameters(), lr=1e-4)
+    # Setup the training, validation, and testing dataloaders
+    train_loader, val_loader, test_loader = create_split_loaders(batch_size, seed, transform=transform, 
+                                     p_val=p_val, p_test=p_test,
+                                     shuffle=True, show_sample=False, 
+                                     extras=extras)
 
-    val_imgs, val_targs = next(iter(val))
-    val_imgs = func.upsample(val_imgs, size=(val_imgs.size(2)/2, val_imgs.size(3)/2), mode='bilinear',\
-                             align_corners=True).cuda()
-    val_targs = val_targs.cuda()
+    # Instantiate a BasicCNN to run on the GPU or CPU based on CUDA support
+    model = BasicCNN()
+    model = model.to(computing_device)
+    print("Model on CUDA?", next(model.parameters()).is_cuda)
 
-    for batch_img, targs in train:
-        batch_img = func.upsample(batch_img, size=(batch_img.size(2)/2, batch_img.size(3)/2), mode='bilinear',\
-                                  align_corners=True).cuda()
-        targs = targs.cuda()
-        optimizer.zero_grad()
+    criterion = nn.BCELoss() #TODO - loss criteria are defined in the torch.nn package
 
-        preds = network(batch_img)
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
-        tp, tn, fp, fn = getResults(preds, targs)
+    # Track the loss across training
+    total_loss = []
+    avg_minibatch_loss = []
 
-        accuracy = (tn+tp)/(tp+tn+fp+fn)
-        precision = tp/(fp+tp)
-        recall = tp/(tp+fn)
-        bcr = (precision+recall)/2.0
-        
-        #Calculate the loss
-        loss = loss_func(preds, targs)
-        loss.backward()
-        optimizer.step()
+    # Begin training procedure
+    for epoch in range(num_epochs):
+        N = 50
+        N_minibatch_loss = 0.0    
 
-        val_preds = network(val_imgs)
-        val_loss = loss_func(val_preds, val_targs)
-        print(val_loss.item())
+        # Get the next minibatch of images, labels for training
+        for minibatch_count, (images, labels) in enumerate(train_loader, 0):
+            # Put the minibatch data in CUDA Tensors and run on the GPU if supported
+            images, labels = images.to(computing_device), labels.to(computing_device)
+            
+            # Zero out the stored gradient (buffer) from the previous iteration
+            optimizer.zero_grad()
+            
+            # Perform the forward pass through the network and compute the loss
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            
+            # Automagically compute the gradients and backpropagate the loss through the network
+            loss.backward()
+            
+            # Update the weights
+            optimizer.step()
+            
+            # Add this iteration's loss to the total_loss
+            total_loss.append(loss.item())
+            N_minibatch_loss += loss
+            
+            #TODO: Implement cross-validation
+            
+            if minibatch_count % N == 0:    
+                # Print the loss averaged over the last N mini-batches    
+                N_minibatch_loss /= N
+                print('Epoch %d, average minibatch %d loss: %.3f' %
+                (epoch + 1, minibatch_count, N_minibatch_loss))
+                
+                # Add the averaged loss over N minibatches and reset the counter
+                avg_minibatch_loss.append(N_minibatch_loss)
+                N_minibatch_loss = 0.0
 
-        del preds, batch_img, targs, loss, val_preds, val_loss
+        print("Finished", epoch + 1, "epochs of training")
+    print("Training complete after", epoch, "epochs")
 
 if __name__ == '__main__':
     main()
