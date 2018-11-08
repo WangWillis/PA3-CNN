@@ -171,8 +171,8 @@ def getResults(preds, targs, thresh = 0.5):
     preds = preds.cpu().detach().numpy()
     targs = targs.cpu().detach().numpy()
 
-    preds[preds < thresh] = 0
-    preds[preds >= thresh] = 1
+    preds[preds < thresh] = 0.
+    preds[preds >= thresh] = 1.
 
     tp = np.sum(np.logical_and(preds == 1, targs == 1))
     fp = np.sum(np.logical_and(preds == 1, targs == 0))
@@ -184,7 +184,7 @@ def getResults(preds, targs, thresh = 0.5):
 # Setup: initialize the hyperparameters/variables
 num_epochs = 1           # Number of full passes through the dataset
 batch_size = 16          # Number of samples in each minibatch
-learning_rate = 0.001  
+learning_rate = 1e-4 
 seed = np.random.seed(1) # Seed the random number generator for reproducibility
 p_val = 0.1              # Percent of the overall dataset to reserve for validation
 p_test = 0.2             # Percent of the overall dataset to reserve for testing
@@ -218,18 +218,25 @@ def main():
     model = model.to(computing_device)
     print("Model on CUDA?", next(model.parameters()).is_cuda)
 
-    criterion = nn.BCELoss() #TODO - loss criteria are defined in the torch.nn package
+    criterion = nn.BCEWithLogitsLoss(weight=None) #TODO - loss criteria are defined in the torch.nn package
 
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     # Track the loss across training
     total_loss = []
     avg_minibatch_loss = []
+    avg_train_acc = []
+
+    val_loss = []
+    val_acc = [] 
+
+    best_loss = float('inf')
 
     # Begin training procedure
     for epoch in range(num_epochs):
         N = 50
         N_minibatch_loss = 0.0    
+        n_train_acc = 0.0
 
         # Get the next minibatch of images, labels for training
         for minibatch_count, (images, labels) in enumerate(train_loader, 0):
@@ -252,21 +259,46 @@ def main():
             # Add this iteration's loss to the total_loss
             total_loss.append(loss.item())
             N_minibatch_loss += loss
-            
-            #TODO: Implement cross-validation
+            tp, tn, fp, fn = getResults(outputs, labels)
+            n_train_acc += (tp+tn)/(tp+tn+fp+fn)
             
             if minibatch_count % N == 0:    
                 # Print the loss averaged over the last N mini-batches    
                 N_minibatch_loss /= N
-                print('Epoch %d, average minibatch %d loss: %.3f' %
-                (epoch + 1, minibatch_count, N_minibatch_loss))
+                n_train_acc /= N
+                avg_train_acc.append(n_train_acc)
+
+                images, labels = next(iter(val_loader))
+
+                images, labels = images.to(computing_device), labels.to(computing_device)
+                # Perform the forward pass through the network and compute the loss
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+
+                tp, tn, fp, fn = getResults(outputs, labels)
+                v_acc = (tp+tn)/(tp+tn+fp+fn)
+
+                val_loss.append(loss.item())
+                val_acc.append(v_acc)
+
+                if (loss < best_loss):
+                    torch.save(model.state_dict(), 'best_baseline_model.pt')
+                    best_loss = loss.item()
+                 
+                print('Epoch %d, average minibatch %d loss: %.3f, average acc: %.3f' %
+                (epoch + 1, minibatch_count, N_minibatch_loss, n_train_acc))
+                print('Epoch %d, validation loss: %.3f, validation acc: %.3f' % (epoch+1, loss.item(), v_acc))
                 
                 # Add the averaged loss over N minibatches and reset the counter
                 avg_minibatch_loss.append(N_minibatch_loss)
                 N_minibatch_loss = 0.0
+                n_train_acc = 0.0
 
         print("Finished", epoch + 1, "epochs of training")
     print("Training complete after", epoch, "epochs")
+
+    train_data = np.array([avg_minibatch_loss, avg_train_acc, val_loss, val_acc]) 
+    np.save('baseline_data.npy', train_data)
 
 if __name__ == '__main__':
     main()
