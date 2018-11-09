@@ -104,25 +104,53 @@ class BiasBCEWithLogitsLoss(Module):
 
 KERNEL_SIZE = 3
 class ResBlock(nn.Module):
-    def __init__(self, in_c, out_c, stride=1):
+    def __init__(self, in_c, out_c, stride=1, downsample=False):
         super(ResBlock, self).__init__()
-        self.conv1 = nn.Conv2d(in_c, out_c, kernel_size=KERNEL_SIZE, stride=stride, padding=1)
-        self.bn1 = nn.BatchNorm2d(out_c)
-        self.conv2 = nn.Conv2d(out_c, out_c, kernel_size=KERNEL_SIZE, stride=stride, padding=1)
-        self.bn2 = nn.BatchNorm2d(out_c)
+        self.conv1 = nn.Conv2d(in_c, out_c, kernel_size=KERNEL_SIZE, stride=stride, padding=1).cuda()
+        self.bn1 = nn.BatchNorm2d(out_c).cuda()
+
+        self.conv2 = nn.Conv2d(out_c, out_c, kernel_size=KERNEL_SIZE, stride=stride, padding=1).cuda()
+        self.bn2 = nn.BatchNorm2d(out_c).cuda()
+
+        self.downsample = downsample
+        if (self.downsample):
+            self.conv_down = nn.Conv2d(in_c, out_c, kernel_size=1, stride=stride).cuda()
+            self.bn_down = nn.BatchNorm2d(out_c).cuda()
 
     def forward(self, batch):
+        org = batch
+        if (self.downsample):
+            org = self.conv_down(batch)
+            org = self.bn_down(org)
+
         res = self.conv1(batch)
         res = self.bn1(res)
         res = func.relu(res)
 
         res = self.conv2(res)
         res = self.bn2(res)
-
-        out = batch+res
+        out = org+res
         out = func.relu(out)
 
         return out
+
+class ResLayer(nn.Module):
+    def __init__(self, in_c, out_c, blocks=4):
+        super(ResLayer, self).__init__()
+        self.blocks = []
+
+        self.blocks.append(ResBlock(in_c, out_c, downsample=True))
+        for _ in range(1, blocks):
+            self.blocks.append(ResBlock(out_c, out_c))
+
+        self.pool = nn.MaxPool2d(kernel_size=3, stride=3).cuda()
+
+    def forward(self, batch):
+        res = batch
+        for block in self.blocks:
+            res = block(res)
+        res = self.pool(res)
+        return res
 
 class ResCNN(nn.Module):
     """ A basic convolutional neural network model for baseline comparison. 
@@ -137,25 +165,34 @@ class ResCNN(nn.Module):
     - The Conv2d layer uses a stride of 1 and 0 padding by default
     """
     
-    def __init__(self):
-        super(BasicCNN, self).__init__()
+    def __init__(self, num_classes=14):
+        super(ResCNN, self).__init__()
 
-        self.layer1 = ResBlock(1, 64)
-        self.layer2 = ResBlock(64, 128)
-        self.layer3 = ResBlock(128, 256)
-        self.layer4 = ResBlock(256, 512)
+        FC1_IN = 32*6*6
+
+        self.layer1 = ResLayer(1, 4, blocks=3)
+        self.layer2 = ResLayer(4, 8, blocks=4)
+        self.layer3 = ResLayer(8, 16, blocks=6)
+        self.layer4 = ResLayer(16, 32, blocks=3)
+
         
         # Define 2 fully connected layers:
-        #TODO: Use the value you computed in Part 1, Question 4 for fc1's in_features
-        self.fc1 = nn.Linear(in_features=FC1_IN_SIZE, out_features=FC1_OUT_SIZE)
-        self.fc1_normed = nn.BatchNorm1d(FC1_OUT_SIZE)
-        torch_init.xavier_normal_(self.fc1.weight)
+        self.fc1 = nn.Linear(FC1_IN, num_classes)
 
         #TODO: Output layer: what should out_features be?
-        self.fc2 = nn.Linear(in_features=FC1_OUT_SIZE, out_features=FC2_OUT_SIZE).cuda()
-        torch_init.xavier_normal_(self.fc2.weight)
+        for m in self.modules():
+            if (isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear)):
+                torch_init.xavier_normal_(m.weight)
 
+    def create_layer(self, in_c, out_c, num_blocks=1):
+        blocks = []
 
+        blocks.append(ResBlock(in_c, out_c, downsample=True))
+        for _ in range(1, num_blocks):
+            blocks.append(ResBlock(out_c, out_c))
+
+        blocks.append(nn.MaxPool2d(kernel_size=3, stride=3))
+        return nn.Sequential(*blocks)
 
     def forward(self, batch):
         """Pass the batch of images through each layer of the network, applying 
@@ -176,12 +213,15 @@ class ResCNN(nn.Module):
         # use batch-normalization on its outputs
 
         out = self.layer1(batch)
-        print(out.size)
         out = self.layer2(out)
         out = self.layer3(out)
         out = self.layer4(out)
 
-        return func.sigmoid(batch)
+        out = out.view(-1, self.num_flat_features(out))
+
+        out = self.fc1(out)
+
+        return func.sigmoid(out)
     
     
 
@@ -222,7 +262,7 @@ def getResults(preds, targs, thresh = 0.5):
 # Setup: initialize the hyperparameters/variables
 num_epochs = 1           # Number of full passes through the dataset
 batch_size = 16          # Number of samples in each minibatch
-learning_rate = 1e-4 
+learning_rate = 1e-3 
 seed = np.random.seed(1) # Seed the random number generator for reproducibility
 p_val = 0.1              # Percent of the overall dataset to reserve for validation
 p_test = 0.2             # Percent of the overall dataset to reserve for testing
@@ -314,13 +354,14 @@ def main():
                 loss = criterion(outputs, labels)
 
                 tp, tn, fp, fn = getResults(outputs, labels)
+                print(tp, tn, fp, fn)
                 v_acc = (tp+tn)/(tp+tn+fp+fn)
 
                 val_loss.append(loss.item())
                 val_acc.append(v_acc)
 
                 if (loss < best_loss):
-                    torch.save(model.state_dict(), 'best_baseline_model.pt')
+                    torch.save(model.state_dict(), 'best_res_model.pt')
                     best_loss = loss.item()
                  
                 print('Epoch %d, average minibatch %d loss: %.3f, average acc: %.3f' %
@@ -336,7 +377,7 @@ def main():
     print("Training complete after", epoch, "epochs")
 
     train_data = np.array([avg_minibatch_loss, avg_train_acc, val_loss, val_acc]) 
-    np.save('baseline_data.npy', train_data)
+    np.save('res_data.npy', train_data)
 
 if __name__ == '__main__':
     main()
