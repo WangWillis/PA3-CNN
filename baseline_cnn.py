@@ -303,7 +303,7 @@ def main():
                     recall = tp/(tp+fn)
                 if (fp+tp!=0):
                     precision = tp/(tp+fp)
-                if (precision != -1 && bcr != -1):
+                if (precision != -1 and bcr != -1):
                     bcr = (precision + recall)/2
 		
                 print('Recall: %.3f, Precision: %.3f' % (recall, precision))
