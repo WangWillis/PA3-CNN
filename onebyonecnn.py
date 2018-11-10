@@ -65,21 +65,21 @@ class OneByOneCNN(nn.Module):
     def __init__(self):
         super(OneByOneCNN, self).__init__()
         CONV1_IN_C = 1
-        CONV1_OUT_C = 24
-        CONV1_KERNEL = 16
+        CONV1_OUT_C = 12
+        CONV1_KERNEL = 8
 
-        CONV2_IN_C = 12
-        CONV2_OUT_C = 20
-        CONV2_KERNEL = 16
+        CONV2_IN_C = 6
+        CONV2_OUT_C = 8
+        CONV2_KERNEL = 8
 
-        CONV3_IN_C = 10
-        CONV3_OUT_C = 16
-        CONV3_KERNEL = 12
+        CONV3_IN_C = 8
+        CONV3_OUT_C = 10
+        CONV3_KERNEL = 3
 
         MP1_KERNEL = 3
         MP1_STRIDE = MP1_KERNEL
 
-        FC1_IN_SIZE = 165*165*8
+        FC1_IN_SIZE = 220448
         FC1_OUT_SIZE = 128
         
         FC2_OUT_SIZE = 14
@@ -100,7 +100,7 @@ class OneByOneCNN(nn.Module):
         
 
         #TODO: conv2: 12 input channels, 20 output channels, [16x16] kernel
-        self.conv2 = nn.Conv2d(in_channels=CONV1_OUT_C, out_channels=CONV2_OUT_C, kernel_size=CONV2_KERNEL)
+        self.conv2 = nn.Conv2d(in_channels=CONV2_IN_C, out_channels=CONV2_OUT_C, kernel_size=CONV2_KERNEL)
         self.conv2_normed = nn.BatchNorm2d(CONV2_OUT_C)
         torch_init.xavier_normal_(self.conv2.weight)
         
@@ -112,7 +112,7 @@ class OneByOneCNN(nn.Module):
         torch_init.xavier_normal_(self.one2.weight)
 
         #TODO: conv3: 10 input channels, 16 output channels, [12x12] kernel
-        self.conv3 = nn.Conv2d(in_channels=CONV2_OUT_C, out_channels=CONV3_OUT_C, kernel_size=CONV3_KERNEL)
+        self.conv3 = nn.Conv2d(in_channels=CONV3_IN_C, out_channels=CONV3_OUT_C, kernel_size=CONV3_KERNEL)
         self.conv3_normed = nn.BatchNorm2d(CONV3_OUT_C)
         torch_init.xavier_normal_(self.conv3.weight)
 
