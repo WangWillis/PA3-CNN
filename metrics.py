@@ -49,7 +49,8 @@ def main():
 
     # Instantiate a BasicCNN to run on the GPU or CPU based on CUDA support
     model = BasicCNN()
-    model = model.load_state_dict(torch.load('best_baseline_model.pt'))
+    model.load_state_dict(torch.load('./best_baseline_model.pt'))
+    model = model.to(computing_device)
     print("Model on CUDA?", next(model.parameters()).is_cuda)
 
     # GENERATE CONFUSION MATRIX:
@@ -70,14 +71,29 @@ def main():
             
             # Perform the forward pass through the network and compute the loss
             outputs = model(images)
-            print(minibatch_count)
-            print(outputs)
-   
+            
+            labels = labels.cpu().detach().numpy()
+            preds = outputs.cpu().detach().numpy()
+            preds[preds < 0.5] = 0
+            preds[preds >= 0.5] = 1
+
+            for img in range(batch_size):
+                for i in range(14):
+                    if preds[img][i] == 1.:
+                        if labels[img][i] == 1.:
+                            confusion[i][i] += 1.
+                        else:
+                            for x in range(14):
+                                if x != i:
+                                    confusion[i][x] += 1/13
+            if minibatch_count >= 500:
+                break
 
     # Divide each row by its row sum so that each row adds up to 1
     for row in range(confusion.shape[0]):
-        confusion[row]=confusion[row]/sum(confusion[row])
-    print(confusion)
+        if sum(confusion[row]) != 0:
+            confusion[row]=confusion[row]/sum(confusion[row])
+    print(np.around(confusion, decimals=3))
 
 if __name__ == '__main__':
     main()
