@@ -49,7 +49,7 @@ class Impractical_Loss(torch.nn.Module):
         return torch.sum(c)
 
 
-class BasicCNN(nn.Module):
+class OneByOneCNN(nn.Module):
     """ A basic convolutional neural network model for baseline comparison. 
     
     Consists of three Conv2d layers, followed by one 4x4 max-pooling layer, 
@@ -63,7 +63,7 @@ class BasicCNN(nn.Module):
     """
     
     def __init__(self):
-        super(BasicCNN, self).__init__()
+        super(OneByOneCNN, self).__init__()
         CONV1_IN_C = 1
         CONV1_OUT_C = 12
         CONV1_KERNEL = 8
@@ -220,8 +220,8 @@ def main():
                                      shuffle=True, show_sample=False, 
                                      extras=extras)
 
-    # Instantiate a BasicCNN to run on the GPU or CPU based on CUDA support
-    model = BasicCNN()
+    # Instantiate a OneByOneCNN to run on the GPU or CPU based on CUDA support
+    model = OneByOneCNN()
     model = model.to(computing_device)
     print("Model on CUDA?", next(model.parameters()).is_cuda)
 
@@ -314,8 +314,8 @@ def main():
                 n_train_acc = 0.0
 
         print("Finished", epoch + 1, "epochs of training")
-    print("Training complete after", epoch, "epochs")
-   
+    print("Training complete after", epoch, "epochs")   
+
 
     train_data = np.array([avg_minibatch_loss, avg_train_acc, val_loss, val_acc]) 
     np.save('baseline_data.npy', train_data)
