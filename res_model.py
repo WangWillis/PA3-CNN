@@ -31,76 +31,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-class BiasBCEWithLogitsLoss(Module):
-    r"""This loss combines a `Sigmoid` layer and the `BCELoss` in one single
-    class. This version is more numerically stable than using a plain `Sigmoid`
-    followed by a `BCELoss` as, by combining the operations into one layer,
-    we take advantage of the log-sum-exp trick for numerical stability.
+class Impractical_Loss(torch.nn.Module):
+    def __init__(self, weight=None, pen=1e-1):
+        super(Impractical_Loss, self).__init__()
+        self.weight = weight
+        self.pen = pen
 
-    This Binary Cross Entropy between the target and the output logits
-    (no sigmoid applied) is:
+    def forward(self, y, t):
+        eps = 1e-8
+        diff = torch.abs(t-y)
+        c = -diff*(t*torch.log(y+eps)+self.pen*(1-t)*torch.log(1-y+eps))
+        if (self.weight is not None):
+            c *= self.weight
 
-    .. math:: loss(o, t) = - 1/n \sum_i (t[i] * log(sigmoid(o[i])) + (1 - t[i]) * log(1 - sigmoid(o[i])))
-
-    or in the case of the weight argument being specified:
-
-    .. math:: loss(o, t) = - 1/n \sum_i weight[i] * (t[i] * log(sigmoid(o[i])) + (1 - t[i]) * log(1 - sigmoid(o[i])))
-
-    This is used for measuring the error of a reconstruction in for example
-    an auto-encoder. Note that the targets `t[i]` should be numbers
-    between 0 and 1.
-
-    Args:
-        weight (Tensor, optional): a manual rescaling weight given to the loss
-            of each batch element. If given, has to be a Tensor of size
-            "nbatch".
-        size_average (bool, optional): By default, the losses are averaged
-            over observations for each minibatch. However, if the field
-            size_average is set to ``False``, the losses are instead summed for
-            each minibatch. Default: ``True``
-
-     Shape:
-         - Input: :math:`(N, *)` where `*` means, any number of additional
-           dimensions
-         - Target: :math:`(N, *)`, same shape as the input
-
-     Examples::
-
-         >>> loss = nn.BCEWithLogitsLoss()
-         >>> input = autograd.Variable(torch.randn(3), requires_grad=True)
-         >>> target = autograd.Variable(torch.FloatTensor(3).random_(2))
-         >>> output = loss(input, target)
-         >>> output.backward()
-    """
-    def __init__(self, weight=None, size_average=True):
-        super(BiasBCEWithLogitsLoss, self).__init__()
-        self.size_average = size_average
-        self.register_buffer('weight', weight)
-
-    def bias_cross_entropy_with_logits(self, input, target, weight=None, size_average=True, bias=14):
-        if not (target.size() == input.size()):
-            raise ValueError("Target size ({}) must be the same as input size ({})".format(target.size(), input.size()))
-
-        max_val = (-input).clamp(min=0)
-        bias_pos = target*bias
-        bias_pos[bias_pos==0] = 1
-        loss = bias_pos*(input - input * target + max_val + ((-max_val).exp() + (-input - max_val).exp()).log())
-
-        if weight is not None:
-            loss = loss * weight
-
-        if size_average:
-            return loss.mean()
-        else:
-            return loss.sum()
-
-    def forward(self, input, target):
-        if self.weight is not None:
-            return self.bias_cross_entropy_with_logits(input, target, Variable(self.weight), self.size_average)
-        else:
-            return self.bias_cross_entropy_with_logits(input, target, size_average=self.size_average)
-
-
+        return torch.sum(c)
 
 KERNEL_SIZE = 3
 class ResBlock(nn.Module):
@@ -296,7 +240,10 @@ def main():
     model = model.to(computing_device)
     print("Model on CUDA?", next(model.parameters()).is_cuda)
 
-    criterion = nn.BCEWithLogitsLoss(weight=None) #TODO - loss criteria are defined in the torch.nn package
+    WEIGHTS = torch.tensor([12.84306987, 55.5324418, 11.7501572, 7.83946301, 26.91956783, 24.54465849, 117.64952781, 30.0670421, 33.64945978, 67.95151515, 61.70610897, 91.7512275, 45.91318591, 671.37724551]).to(computing_device)
+    # criterion = nn.BCEWithLogitsLoss(weight=WEIGHTS) #TODO - loss criteria are defined in the torch.nn package
+    # criterion = Impractical_Loss(weight=WEIGHTS, pen=0.1) #TODO - loss criteria are defined in the torch.nn package
+    criterion = Impractical_Loss(weight=None, pen=0.1) #TODO - loss criteria are defined in the torch.nn package
 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
