@@ -1,13 +1,17 @@
 import torch
 import matplotlib
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as func
 import torch.nn.init as torch_init
 import torch.optim as optim
-import os
+
+import torchvision
+from torchvision import transforms, utils
+from xray_dataloader import ChestXrayDataset, create_split_loaders
 from baseline_cnn import BasicCNN
 
 # Setup: initialize the hyperparameters/variables
