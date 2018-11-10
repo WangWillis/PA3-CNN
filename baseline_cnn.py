@@ -238,6 +238,9 @@ def main():
     val_acc = [] 
 
     best_loss = float('inf')
+    sum_prec = 0.
+    sum_rec = 0.
+    sum_brc = 0.
 
     # Begin training procedure
     for epoch in range(num_epochs):
@@ -273,7 +276,7 @@ def main():
                 # Print the loss averaged over the last N mini-batches    
                 N_minibatch_loss /= N
                 n_train_acc /= N
-                avg_train_acc.append(n_train_acc)
+                avg_train_acc.append(float(n_train_acc))
 
                 images, labels = next(iter(val_loader))
 
@@ -285,8 +288,8 @@ def main():
                 tp, tn, fp, fn = getResults(outputs, labels)
                 v_acc = (tp+tn)/(tp+tn+fp+fn)
 
-                val_loss.append(loss.item())
-                val_acc.append(v_acc)
+                val_loss.append(float(loss.item()))
+                val_acc.append(float(v_acc))
 
                 if (loss < best_loss):
                     torch.save(model.state_dict(), 'best_baseline_model.pt')
@@ -303,18 +306,23 @@ def main():
                     recall = tp/(tp+fn)
                 if (fp+tp!=0):
                     precision = tp/(tp+fp)
-                if (precision != -1 and bcr != -1):
+                if (precision != -1 and recall != -1):
                     bcr = (precision + recall)/2
+
+                sum_prec += precision
+                sum_rec += recall
+                sum_brc += bcr
 		
                 print('Recall: %.3f, Precision: %.3f' % (recall, precision))
                 
                 # Add the averaged loss over N minibatches and reset the counter
-                avg_minibatch_loss.append(N_minibatch_loss)
+                avg_minibatch_loss.append(float(N_minibatch_loss))
                 N_minibatch_loss = 0.0
                 n_train_acc = 0.0
 
         print("Finished", epoch + 1, "epochs of training")
     print("Training complete after", epoch, "epochs")
+    print('Final Precision: %.3f, Recall: %.3f, BRC: %.3f' % (sum_prec/5000, sum_rec/5000, sum_brc/5000))
    
 
     train_data = np.array([avg_minibatch_loss, avg_train_acc, val_loss, val_acc]) 
