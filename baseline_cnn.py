@@ -233,7 +233,7 @@ def main():
     model = model.to(computing_device)
     print("Model on CUDA?", next(model.parameters()).is_cuda)
 
-    criterion = Impractical_Loss(pen=0.1) #TODO - loss criteria are defined in the torch.nn package
+    criterion = Impractical_Loss(pen=0.2) #TODO - loss criteria are defined in the torch.nn package
 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -303,6 +303,15 @@ def main():
                 print('Epoch %d, average minibatch %d loss: %.3f, average acc: %.3f' %
                 (epoch + 1, minibatch_count, N_minibatch_loss, n_train_acc))
                 print('Epoch %d, validation loss: %.3f, validation acc: %.3f' % (epoch+1, loss.item(), v_acc))
+                print('tp: %d tn: %d fp: %d fn: %d' % (tp,tn,fp,fn))
+                precision = -1
+                recall = -1
+                if (tp+fn!=0):
+                    recall = tp/(tp+fn)
+                if (fp+tp!=0):
+                    precision = tp/(tp+fp)
+		
+                print('Recall: %.3f, Precision: %.3f' % (recall, precision))
                 
                 # Add the averaged loss over N minibatches and reset the counter
                 avg_minibatch_loss.append(N_minibatch_loss)
