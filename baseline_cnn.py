@@ -174,14 +174,6 @@ class BasicCNN(nn.Module):
         
         return num_features
 
-    def visualize_filters(self):
-        weight = self.conv1.weight.data.numpy()
-        plt.imshow(weight[0,...])
-        weight = self.conv2.weight.data.numpy()
-        plt.imshow(weight[0,...])
-        weight = self.conv3.weight.data.numpy()
-        plt.imshow(weight[0,...])
-
 def getResults(preds, targs, thresh = 0.5):
     preds = preds.cpu().detach().numpy()
     targs = targs.cpu().detach().numpy()
@@ -306,10 +298,13 @@ def main():
                 print('tp: %d tn: %d fp: %d fn: %d' % (tp,tn,fp,fn))
                 precision = -1
                 recall = -1
+                bcr = -1
                 if (tp+fn!=0):
                     recall = tp/(tp+fn)
                 if (fp+tp!=0):
                     precision = tp/(tp+fp)
+                if (precision != -1 && bcr != -1):
+                    bcr = (precision + recall)/2
 		
                 print('Recall: %.3f, Precision: %.3f' % (recall, precision))
                 
@@ -320,6 +315,19 @@ def main():
 
         print("Finished", epoch + 1, "epochs of training")
     print("Training complete after", epoch, "epochs")
+   
+
+    # GENERATE CONFUSION MATRIX:
+
+    # Generate 14x14 confusion matrix
+    confusion =np.zeros((14,14))
+    # Get the next minibatch of images, labels for training
+    for minibatch_count, (images, labels) in enumerate(train_loader, 0):
+        # Put the minibatch data in CUDA Tensors and run on the GPU if supported
+        images, labels = images.to(computing_device), labels.to(computing_device)
+        # Perform the forward pass through the network and compute the loss
+        outputs = model(images)
+
 
     train_data = np.array([avg_minibatch_loss, avg_train_acc, val_loss, val_acc]) 
     np.save('baseline_data.npy', train_data)
