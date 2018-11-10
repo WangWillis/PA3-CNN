@@ -65,14 +65,16 @@ class OneByOneCNN(nn.Module):
     def __init__(self):
         super(OneByOneCNN, self).__init__()
         CONV1_IN_C = 1
-        CONV1_OUT_C = 12
-        CONV1_KERNEL = 8
+        CONV1_OUT_C = 24
+        CONV1_KERNEL = 16
 
-        CONV2_OUT_C = 10
-        CONV2_KERNEL = 8
+        CONV2_IN_C = 12
+        CONV2_OUT_C = 20
+        CONV2_KERNEL = 16
 
-        CONV3_OUT_C = 8
-        CONV3_KERNEL = 6
+        CONV3_IN_C = 10
+        CONV3_OUT_C = 16
+        CONV3_KERNEL = 12
 
         MP1_KERNEL = 3
         MP1_STRIDE = MP1_KERNEL
@@ -82,27 +84,44 @@ class OneByOneCNN(nn.Module):
         
         FC2_OUT_SIZE = 14
         
-        # conv1: 1 input channel, 12 output channels, [8x8] kernel size
+        # conv1: 1 input channel, 24 output channels, [16x16] kernel size
         self.conv1 = nn.Conv2d(in_channels=CONV1_IN_C, out_channels=CONV1_OUT_C, kernel_size=CONV1_KERNEL)
-        
         # Add batch-normalization to the outputs of conv1
-        self.conv1_normed = nn.BatchNorm2d(CONV1_OUT_C)
-        
+        self.conv1_normed = nn.BatchNorm2d(CONV1_OUT_C) 
         # Initialized weights using the Xavier-Normal method
         torch_init.xavier_normal_(self.conv1.weight)
 
-        #TODO: Fill in the remaining initializations replacing each '_' with
-        # the necessary value based on the provided specs for each layer
+        # First 1x1 24 input 12 output
+        self.one1 = nn.Conv2d(in_channels=CONV1_OUT_C, out_channels=CONV2_IN_C, kernel_size=1)
+        # Add batch-normalization to the outputs of conv1
+        self.one1_normed = nn.BatchNorm2d(CONV2_IN_C) 
+        # Initialized weights using the Xavier-Normal method
+        torch_init.xavier_normal_(self.one1.weight)
+        
 
-        #TODO: conv2: X input channels, 10 output channels, [8x8] kernel
+        #TODO: conv2: 12 input channels, 20 output channels, [16x16] kernel
         self.conv2 = nn.Conv2d(in_channels=CONV1_OUT_C, out_channels=CONV2_OUT_C, kernel_size=CONV2_KERNEL)
         self.conv2_normed = nn.BatchNorm2d(CONV2_OUT_C)
         torch_init.xavier_normal_(self.conv2.weight)
+        
+        # Second 1x1 20 input 10 output
+        self.one2 = nn.Conv2d(in_channels=CONV2_OUT_C, out_channels=CONV3_IN_C, kernel_size=1)
+        # Add batch-normalization to the outputs of conv1
+        self.one2_normed = nn.BatchNorm2d(CONV3_IN_C) 
+        # Initialized weights using the Xavier-Normal method
+        torch_init.xavier_normal_(self.one2.weight)
 
-        #TODO: conv3: X input channels, 8 output channels, [6x6] kernel
+        #TODO: conv3: 10 input channels, 16 output channels, [12x12] kernel
         self.conv3 = nn.Conv2d(in_channels=CONV2_OUT_C, out_channels=CONV3_OUT_C, kernel_size=CONV3_KERNEL)
         self.conv3_normed = nn.BatchNorm2d(CONV3_OUT_C)
         torch_init.xavier_normal_(self.conv3.weight)
+
+        # Third 1x1 16 input 8 output
+        self.one3 = nn.Conv2d(in_channels=CONV3_OUT_C, out_channels=8, kernel_size=1)
+        # Add batch-normalization to the outputs of conv1
+        self.one3_normed = nn.BatchNorm2d(8) 
+        # Initialized weights using the Xavier-Normal method
+        torch_init.xavier_normal_(self.one3.weight)
 
         #TODO: Apply max-pooling with a [3x3] kernel using tiling (*NO SLIDING WINDOW*)
         self.pool = nn.MaxPool2d(kernel_size=MP1_KERNEL, stride=MP1_STRIDE, padding=1)
@@ -137,10 +156,13 @@ class OneByOneCNN(nn.Module):
         # Apply first convolution, followed by ReLU non-linearity; 
         # use batch-normalization on its outputs
         batch = func.relu(self.conv1_normed(self.conv1(batch)))
+        batch = func.relu(self.one1_normed(self.one1(batch)))
         
         # Apply conv2 and conv3 similarly
         batch = func.relu(self.conv2_normed(self.conv2(batch)))
+        batch = func.relu(self.one2_normed(self.one2(batch)))
         batch = func.relu(self.conv3_normed(self.conv3(batch)))
+        batch = func.relu(self.one3_normed(self.one3(batch)))
         
         
         # Pass the output of conv3 to the pooling layer
@@ -273,7 +295,7 @@ def main():
                 # Print the loss averaged over the last N mini-batches    
                 N_minibatch_loss /= N
                 n_train_acc /= N
-                avg_train_acc.append(n_train_acc)
+                avg_train_acc.append(float(n_train_acc))
 
                 images, labels = next(iter(val_loader))
 
@@ -285,8 +307,8 @@ def main():
                 tp, tn, fp, fn = getResults(outputs, labels)
                 v_acc = (tp+tn)/(tp+tn+fp+fn)
 
-                val_loss.append(loss.item())
-                val_acc.append(v_acc)
+                val_loss.append(float(loss.item()))
+                val_acc.append(float(v_acc))
 
                 if (loss < best_loss):
                     torch.save(model.state_dict(), 'best_baseline_model.pt')
@@ -309,7 +331,7 @@ def main():
                 print('Recall: %.3f, Precision: %.3f' % (recall, precision))
                 
                 # Add the averaged loss over N minibatches and reset the counter
-                avg_minibatch_loss.append(N_minibatch_loss)
+                avg_minibatch_loss.append(float(N_minibatch_loss))
                 N_minibatch_loss = 0.0
                 n_train_acc = 0.0
 
