@@ -261,6 +261,10 @@ def main():
 
     best_loss = float('inf')
 
+    sum_prec = 0
+    sum_rec = 0
+    sum_bcr = 0
+
     # Begin training procedure
     for epoch in range(num_epochs):
         N = 50
@@ -311,7 +315,7 @@ def main():
                 val_acc.append(float(v_acc))
 
                 if (loss < best_loss):
-                    torch.save(model.state_dict(), 'best_baseline_model.pt')
+                    torch.save(model.state_dict(), 'best_onebyone_model.pt')
                     best_loss = loss.item()
                  
                 print('Epoch %d, average minibatch %d loss: %.3f, average acc: %.3f' %
@@ -323,11 +327,15 @@ def main():
                 bcr = -1
                 if (tp+fn!=0):
                     recall = tp/(tp+fn)
+                    sum_rec += recall
                 if (fp+tp!=0):
                     precision = tp/(tp+fp)
+                    sum_prec += precision
                 if (precision != -1 and bcr != -1):
                     bcr = (precision + recall)/2
+                    sum_bcr += bcr
 		
+
                 print('Recall: %.3f, Precision: %.3f' % (recall, precision))
                 
                 # Add the averaged loss over N minibatches and reset the counter
@@ -337,10 +345,11 @@ def main():
 
         print("Finished", epoch + 1, "epochs of training")
     print("Training complete after", epoch, "epochs")   
+    print("Final Precision: %.3f, Recall: %.3f" % (sum_prec/5000, sum_rec/5000, sum_bcr/5000))
 
 
     train_data = np.array([avg_minibatch_loss, avg_train_acc, val_loss, val_acc]) 
-    np.save('baseline_data.npy', train_data)
+    np.save('onebyone_data.npy', train_data)
 
 if __name__ == '__main__':
     main()
