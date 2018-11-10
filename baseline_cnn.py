@@ -33,6 +33,21 @@ import numpy as np
 import os
 
 
+class Impractical_Loss(torch.nn.Module):
+    def __init__(self, weight=None, pen=1e-1):
+        super(Impractical_Loss, self).__init__()
+        self.weight = weight
+        self.pen = pen
+
+    def forward(self, y, t):
+        eps = 1e-8
+        diff = torch.abs(t-y)
+        c = -diff*(t*torch.log(y+eps)+self.pen*(1-t)*torch.log(1-y+eps))
+        if (self.weight is not None):
+            c *= self.weight
+
+        return torch.sum(c)
+
 
 class BasicCNN(nn.Module):
     """ A basic convolutional neural network model for baseline comparison. 
@@ -218,7 +233,7 @@ def main():
     model = model.to(computing_device)
     print("Model on CUDA?", next(model.parameters()).is_cuda)
 
-    criterion = nn.BCEWithLogitsLoss(weight=None) #TODO - loss criteria are defined in the torch.nn package
+    criterion = Impractical_Loss(pen=0.1) #TODO - loss criteria are defined in the torch.nn package
 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
