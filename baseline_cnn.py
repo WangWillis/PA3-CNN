@@ -322,7 +322,7 @@ def main():
 
         print("Finished", epoch + 1, "epochs of training")
     print("Training complete after", epoch, "epochs")
-    print('Final Precision: %.3f, Recall: %.3f, BRC: %.3f' % (sum_prec/5000, sum_rec/5000, sum_brc/5000))
+    print('Final Precision: %.3f, Recall: %.3f, BRC: %.3f' % (N*sum_prec/5000, N*sum_rec/5000, N*sum_brc/5000))
    
 
     train_data = np.array([avg_minibatch_loss, avg_train_acc, val_loss, val_acc]) 
