@@ -87,39 +87,39 @@ class OneByOneCNN(nn.Module):
         # conv1: 1 input channel, 24 output channels, [16x16] kernel size
         self.conv1 = nn.Conv2d(in_channels=CONV1_IN_C, out_channels=CONV1_OUT_C, kernel_size=CONV1_KERNEL)
         # Add batch-normalization to the outputs of conv1
-        self.conv1_normed = nn.BatchNorm2d(CONV1_OUT_C) 
+        self.conv1_normed = nn.BatchNorm2d(CONV1_IN_C) 
         # Initialized weights using the Xavier-Normal method
         torch_init.xavier_normal_(self.conv1.weight)
 
         # First 1x1 24 input 12 output
         self.one1 = nn.Conv2d(in_channels=CONV1_OUT_C, out_channels=CONV2_IN_C, kernel_size=1)
         # Add batch-normalization to the outputs of conv1
-        self.one1_normed = nn.BatchNorm2d(CONV2_IN_C) 
+        self.one1_normed = nn.BatchNorm2d(CONV1_OUT_C) 
         # Initialized weights using the Xavier-Normal method
         torch_init.xavier_normal_(self.one1.weight)
         
 
         #TODO: conv2: 12 input channels, 20 output channels, [16x16] kernel
         self.conv2 = nn.Conv2d(in_channels=CONV2_IN_C, out_channels=CONV2_OUT_C, kernel_size=CONV2_KERNEL)
-        self.conv2_normed = nn.BatchNorm2d(CONV2_OUT_C)
+        self.conv2_normed = nn.BatchNorm2d(CONV2_IN_C)
         torch_init.xavier_normal_(self.conv2.weight)
         
         # Second 1x1 20 input 10 output
         self.one2 = nn.Conv2d(in_channels=CONV2_OUT_C, out_channels=CONV3_IN_C, kernel_size=1)
         # Add batch-normalization to the outputs of conv1
-        self.one2_normed = nn.BatchNorm2d(CONV3_IN_C) 
+        self.one2_normed = nn.BatchNorm2d(CONV2_OUT_C) 
         # Initialized weights using the Xavier-Normal method
         torch_init.xavier_normal_(self.one2.weight)
 
         #TODO: conv3: 10 input channels, 16 output channels, [12x12] kernel
         self.conv3 = nn.Conv2d(in_channels=CONV3_IN_C, out_channels=CONV3_OUT_C, kernel_size=CONV3_KERNEL)
-        self.conv3_normed = nn.BatchNorm2d(CONV3_OUT_C)
+        self.conv3_normed = nn.BatchNorm2d(CONV3_IN_C)
         torch_init.xavier_normal_(self.conv3.weight)
 
         # Third 1x1 16 input 8 output
         self.one3 = nn.Conv2d(in_channels=CONV3_OUT_C, out_channels=8, kernel_size=1)
         # Add batch-normalization to the outputs of conv1
-        self.one3_normed = nn.BatchNorm2d(8) 
+        self.one3_normed = nn.BatchNorm2d(CONV3_OUT_C) 
         # Initialized weights using the Xavier-Normal method
         torch_init.xavier_normal_(self.one3.weight)
 
@@ -155,14 +155,14 @@ class OneByOneCNN(nn.Module):
         """
         # Apply first convolution, followed by ReLU non-linearity; 
         # use batch-normalization on its outputs
-        batch = func.relu(self.conv1_normed(self.conv1(batch)))
-        batch = func.relu(self.one1_normed(self.one1(batch)))
+        batch = func.relu(self.conv1(self.conv1_normed(batch)))
+        batch = func.relu(self.one1(self.one1_normed(batch)))
         
         # Apply conv2 and conv3 similarly
-        batch = func.relu(self.conv2_normed(self.conv2(batch)))
-        batch = func.relu(self.one2_normed(self.one2(batch)))
-        batch = func.relu(self.conv3_normed(self.conv3(batch)))
-        batch = func.relu(self.one3_normed(self.one3(batch)))
+        batch = func.relu(self.conv2(self.conv2_normed(batch)))
+        batch = func.relu(self.one2(self.one2_normed(batch)))
+        batch = func.relu(self.conv3(self.conv3_normed(batch)))
+        batch = func.relu(self.one3(self.one3_normed(batch)))
         
         
         # Pass the output of conv3 to the pooling layer
