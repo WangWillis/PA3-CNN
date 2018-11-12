@@ -38,23 +38,25 @@ class Impractical_Loss(torch.nn.Module):
 
     def forward(self, y, t):
         eps = 1e-16
-        diff = torch.abs(t-y)
+        # diff = torch.abs(t-y)
         # c = -(t*torch.log(y+eps)+self.pen*(1-t)*torch.log(1-y+eps))
-        c = -(t*torch.log(y+eps)+self.pen*y*(1-t)*torch.log(1-y+eps))
+        c = -(t*torch.log(y+eps)+self.pen*(1-t)*torch.log(1-y+eps))
+        # c = -(self.weight*t*torch.log(y+eps)+y*(1-t)*torch.log(1-y+eps))
         # a = t*torch.log(y+eps)
         # b = (1-t)*torch.log(1-y+eps)
         # c = -(a+b*torch.abs(b))
         if (self.weight is not None):
             c *= self.weight
 
-        return torch.sum(c)
+        return torch.sum(c)/(1+torch.sum(t))
 
 KERNEL_SIZE = 3
 class ResBlock(nn.Module):
     def __init__(self, in_c, out_c, stride=1, downsample=False):
         super(ResBlock, self).__init__()
+        self.bn1 = nn.BatchNorm2d(in_c).cuda()
         self.conv1 = nn.Conv2d(in_c, out_c, kernel_size=KERNEL_SIZE, stride=stride, padding=1).cuda()
-        self.bn1 = nn.BatchNorm2d(out_c).cuda()
+        # self.bn1 = nn.BatchNorm2d(out_c).cuda()
 
         self.conv2 = nn.Conv2d(out_c, out_c, kernel_size=KERNEL_SIZE, stride=stride, padding=1).cuda()
         self.bn2 = nn.BatchNorm2d(out_c).cuda()
@@ -65,17 +67,19 @@ class ResBlock(nn.Module):
             self.bn_down = nn.BatchNorm2d(out_c).cuda()
 
     def forward(self, batch):
+        batch = self.bn1(batch)
+
         org = batch
         if (self.downsample):
             org = self.conv_down(batch)
             org = self.bn_down(org)
 
         res = self.conv1(batch)
-        res = self.bn1(res)
+        # res = self.bn1(res)
         res = func.relu(res)
 
-        res = self.conv2(res)
         res = self.bn2(res)
+        res = self.conv2(res)
         out = org+res
         out = func.relu(out)
 
@@ -105,16 +109,18 @@ class ResCNN(nn.Module):
     def __init__(self, num_classes=14):
         super(ResCNN, self).__init__()
 
-        S = 2
+        S = 3
         FC1_IN = (2**(S+1))*(256**2)
 
+        self.bn1 = nn.BatchNorm2d(1)
         self.conv1 = nn.Conv2d(1, 2**S, kernel_size=7, stride=2, padding=3)
-        self.bn1 = nn.BatchNorm2d(2**S)
+        # self.bn1 = nn.BatchNorm2d(2**S)
         self.pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         self.layer1 = ResLayer(2**S, 2**S, blocks=2, pool=False)
-        self.layer2 = ResLayer(2**S, 2**(S+1), blocks=2, pool=False)
+        self.layer2 = ResLayer(2**S, 2**(S+1), blocks=4, pool=False)
         
+        self.bnf = nn.BatchNorm1d(FC1_IN)
         self.fc1 = nn.Linear(FC1_IN, num_classes)
 
         for m in self.modules():
@@ -122,8 +128,9 @@ class ResCNN(nn.Module):
                 torch_init.xavier_normal_(m.weight)
 
     def forward(self, batch):
-        out = self.conv1(batch)
-        out = self.bn1(out)
+        out = self.bn1(batch)
+        out = self.conv1(out)
+        # out = self.bn1(out)
         out = func.relu(out)
         out = self.pool(out)
 
@@ -132,6 +139,7 @@ class ResCNN(nn.Module):
 
         out = out.view(-1, self.num_flat_features(out))
 
+        out = self.bnf(out)
         out = self.fc1(out)
 
         return func.sigmoid(out)
@@ -210,10 +218,10 @@ def main():
 
     WEIGHTS = torch.tensor([12.84306987, 55.5324418, 11.7501572, 7.83946301, 26.91956783, 24.54465849, 117.64952781, 30.0670421, 33.64945978, 67.95151515, 61.70610897, 91.7512275, 45.91318591, 671.37724551]).to(computing_device)/10
     # criterion = nn.BCEWithLogitsLoss(weight=WEIGHTS)
-    criterion = Impractical_Loss(weight=WEIGHTS, pen=0.9)
+    criterion = Impractical_Loss(weight=WEIGHTS, pen=0.4)
     # criterion = Impractical_Loss(weight=None, pen=0.5)
 
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.01)
     # optimizer = optim.SGD(model.parameters(), lr=learning_rate)
 
 
@@ -278,15 +286,14 @@ def main():
                 tp, tn, fp, fn = getResults(outputs, labels)
                 v_acc = (tp+tn)/(tp+tn+fp+fn)
 
-                precision = -1
-                recall = -1
-                brc = -1
+                precision = 0
+                recall = 0
+                brc = 0
                 if (tp+fn != 0):
                     recall = tp/(tp+fn)
                 if (fp+tp != 0):
                     precision = tp/(tp+fp)
-                if (precision != -1 and recall != -1):
-                    brc = (precision+recall)/2
+                brc = (precision+recall)/2
 
                 sum_prec += precision
                 sum_recall += recall
@@ -295,7 +302,7 @@ def main():
                 val_acc.append(float(v_acc))
 
                 if (loss < best_loss):
-                    torch.save(model.state_dict(), 'best_res_model_test.pt')
+                    torch.save(model.state_dict(), 'best_res_model_test2.pt')
                     best_loss = loss.item()
                  
                 print('Epoch %d, minibatch %d average loss: %.3f, average acc: %.3f' %
@@ -314,7 +321,7 @@ def main():
     print("Training complete after", epoch, "epochs")
 
     train_data = np.array([avg_minibatch_loss, avg_train_acc, val_loss, val_acc]) 
-    np.save('res_data_test.npy', train_data)
+    np.save('res_data_test2.npy', train_data)
 
 if __name__ == '__main__':
     main()
